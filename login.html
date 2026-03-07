@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login — Server Monitoring Dashboard</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+  <style>
+    :root {
+      --bg-primary: #050a14;
+      --accent-cyan: #00d4ff;
+      --accent-green: #00ff9d;
+      --text-primary: #e8f4fd;
+      --text-secondary: #94a3b8;
+      --text-muted: #4a5568;
+      --border-glass: rgba(0, 212, 255, 0.15);
+      --gradient-accent: linear-gradient(90deg, #00d4ff, #00ff9d);
+      --font-display: 'Syne', sans-serif;
+      --font-body: 'DM Sans', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* BG Canvas */
+    #login-canvas {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* Grid */
+    .grid-bg {
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,212,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,255,0.025) 1px, transparent 1px);
+      background-size: 50px 50px;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* Glow orbs */
+    .glow-orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .glow-orb-1 {
+      width: 400px; height: 400px;
+      background: rgba(0, 212, 255, 0.06);
+      top: -100px; left: -100px;
+    }
+    .glow-orb-2 {
+      width: 300px; height: 300px;
+      background: rgba(0, 255, 157, 0.05);
+      bottom: -80px; right: -80px;
+    }
+
+    /* ─── LAYOUT ─── */
+    .login-split {
+      display: flex;
+      width: 100%;
+      min-height: 100vh;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Left panel */
+    .login-left {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      background: rgba(5, 10, 20, 0.4);
+      border-right: 1px solid var(--border-glass);
+      backdrop-filter: blur(10px);
+    }
+
+    .login-left-content {
+      max-width: 480px;
+      text-align: center;
+      animation: fadeInLeft 0.8s ease both;
+    }
+
+    .login-brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 3rem;
+      text-decoration: none;
+    }
+
+    .brand-icon {
+      width: 44px; height: 44px;
+      background: var(--gradient-accent);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      color: #050a14;
+      font-weight: 700;
+    }
+
+    .brand-text {
+      font-family: var(--font-display);
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .brand-text span {
+      background: var(--gradient-accent);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .server-visual {
+      width: 100%;
+      max-width: 340px;
+      margin: 0 auto 2.5rem;
+    }
+
+    /* Server dashboard preview */
+    .preview-box {
+      background: rgba(10, 20, 40, 0.7);
+      border: 1px solid var(--border-glass);
+      border-radius: 16px;
+      padding: 1.5rem;
+      text-align: left;
+    }
+
+    .preview-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.2rem;
+    }
+
+    .preview-title {
+      font-family: var(--font-display);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--accent-cyan);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .preview-dots { display: flex; gap: 5px; }
+    .preview-dots span { width: 7px; height: 7px; border-radius: 50%; }
+    .preview-dots span:nth-child(1) { background: #ff5f57; }
+    .preview-dots span:nth-child(2) { background: #ffbd2e; }
+    .preview-dots span:nth-child(3) { background: #28ca41; }
+
+    .preview-metric {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .preview-metric-label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    .preview-metric-val {
+      font-family: var(--font-display);
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+
+    .preview-bar-track {
+      height: 4px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 2px;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+
+    .preview-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+    }
+
+    .cpu-bar { background: linear-gradient(90deg,#00d4ff,#3b82f6); width: 38%; }
+    .ram-bar { background: linear-gradient(90deg,#00ff9d,#10b981); width: 62%; }
+    .disk-bar { background: linear-gradient(90deg,#a78bfa,#8b5cf6); width: 45%; }
+
+    .preview-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .preview-led {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--accent-green);
+      box-shadow: 0 0 8px var(--accent-green);
+      animation: blink 2s ease-in-out infinite;
+    }
+
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    .preview-status-text {
+      font-size: 0.7rem;
+      color: var(--accent-green);
+      font-family: var(--font-mono);
+      font-weight: 600;
+    }
+
+    .login-tagline {
+      font-family: var(--font-display);
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      line-height: 1.3;
+    }
+
+    .login-tagline span {
+      background: var(--gradient-accent);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .login-desc {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* Right panel */
+    .login-right {
+      width: 480px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .login-form-wrap {
+      width: 100%;
+      max-width: 400px;
+      animation: fadeInRight 0.8s ease both;
+    }
+
+    .login-form-title {
+      font-family: var(--font-display);
+      font-size: 1.8rem;
+      font-weight: 800;
+      margin-bottom: 0.4rem;
+      letter-spacing: -0.5px;
+    }
+
+    .login-form-sub {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      margin-bottom: 2rem;
+    }
+
+    .demo-hint {
+      background: rgba(0,212,255,0.06);
+      border: 1px solid rgba(0,212,255,0.15);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 2rem;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .demo-hint i { color: var(--accent-cyan); margin-top: 2px; font-size: 0.85rem; }
+
+    .demo-hint-text {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .demo-hint-creds {
+      font-family: var(--font-mono);
+      color: var(--accent-cyan);
+      font-size: 0.8rem;
+      margin-top: 4px;
+    }
+
+    /* Form */
+    .form-group {
+      margin-bottom: 1.2rem;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+      letter-spacing: 0.3px;
+    }
+
+    .input-group {
+      position: relative;
+    }
+
+    .input-group.focused .input-icon { color: var(--accent-cyan); }
+    .input-group.focused .form-input {
+      border-color: var(--accent-cyan);
+      background: rgba(0,212,255,0.03);
+    }
+
+    .input-icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      transition: color 0.2s;
+      pointer-events: none;
+    }
+
+    .form-input {
+      width: 100%;
+      background: rgba(10, 20, 40, 0.6);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 10px;
+      color: var(--text-primary);
+      font-size: 0.9rem;
+      font-family: var(--font-body);
+      padding: 12px 14px 12px 40px;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .form-input::placeholder { color: var(--text-muted); }
+
+    .toggle-pw {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.85rem;
+      padding: 4px;
+      transition: color 0.2s;
+    }
+
+    .toggle-pw:hover { color: var(--accent-cyan); }
+
+    /* Error */
+    .error-msg {
+      background: rgba(248,113,113,0.1);
+      border: 1px solid rgba(248,113,113,0.2);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.82rem;
+      color: #f87171;
+      margin-bottom: 1.2rem;
+      display: none;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .error-msg.visible { display: flex; }
+
+    /* Submit btn */
+    .btn-login {
+      width: 100%;
+      background: var(--gradient-accent);
+      color: #050a14;
+      font-family: var(--font-display);
+      font-size: 0.95rem;
+      font-weight: 700;
+      padding: 13px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.3s;
+      box-shadow: 0 4px 20px rgba(0,212,255,0.25);
+      margin-bottom: 1.5rem;
+    }
+
+    .btn-login:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(0,212,255,0.4);
+    }
+
+    .btn-login:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+
+    .btn-login.success {
+      background: linear-gradient(90deg, #00ff9d, #10b981);
+      box-shadow: 0 4px 20px rgba(0,255,157,0.3);
+    }
+
+    /* Spinner */
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(5,10,20,0.3);
+      border-top-color: #050a14;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      display: inline-block;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Back link */
+    .back-link {
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .back-link a {
+      color: var(--accent-cyan);
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .back-link a:hover { text-decoration: underline; }
+
+    /* Footer info */
+    .login-footer-info {
+      margin-top: 2.5rem;
+      padding-top: 2rem;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      text-align: center;
+    }
+
+    .login-footer-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border: 1px solid var(--border-glass);
+      border-radius: 100px;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      letter-spacing: 0.3px;
+    }
+
+    /* Shake animation */
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-6px); }
+      40%, 80% { transform: translateX(6px); }
+    }
+
+    .shake { animation: shake 0.4s ease; }
+
+    @keyframes fadeInLeft {
+      from { opacity: 0; transform: translateX(-30px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    @keyframes fadeInRight {
+      from { opacity: 0; transform: translateX(30px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .login-split { flex-direction: column; }
+      .login-left { display: none; }
+      .login-right { width: 100%; padding: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="login-canvas"></canvas>
+<div class="grid-bg"></div>
+<div class="glow-orb glow-orb-1"></div>
+<div class="glow-orb glow-orb-2"></div>
+
+<div class="login-split">
+
+  <!-- Left: Branding -->
+  <div class="login-left">
+    <div class="login-left-content">
+
+      <a href="index.html" class="login-brand">
+        <div class="brand-icon"><i class="fas fa-server"></i></div>
+        <span class="brand-text">Server<span>Monitor</span></span>
+      </a>
+
+      <div class="server-visual">
+        <div class="preview-box">
+          <div class="preview-header">
+            <span class="preview-title"><i class="fas fa-server"></i> &nbsp;Live Dashboard</span>
+            <div class="preview-dots"><span></span><span></span><span></span></div>
+          </div>
+
+          <div class="preview-metric">
+            <span class="preview-metric-label">CPU Usage</span>
+            <span class="preview-metric-val" style="color:#00d4ff">38.4%</span>
+          </div>
+          <div class="preview-bar-track">
+            <div class="preview-bar-fill cpu-bar"></div>
+          </div>
+
+          <div class="preview-metric">
+            <span class="preview-metric-label">RAM Usage</span>
+            <span class="preview-metric-val" style="color:#00ff9d">62.1%</span>
+          </div>
+          <div class="preview-bar-track">
+            <div class="preview-bar-fill ram-bar"></div>
+          </div>
+
+          <div class="preview-metric">
+            <span class="preview-metric-label">Disk Usage</span>
+            <span class="preview-metric-val" style="color:#a78bfa">45.7%</span>
+          </div>
+          <div class="preview-bar-track">
+            <div class="preview-bar-fill disk-bar"></div>
+          </div>
+
+          <div class="preview-status">
+            <div class="preview-led"></div>
+            <span class="preview-status-text">ALL SYSTEMS OPERATIONAL</span>
+          </div>
+        </div>
+      </div>
+
+      <h2 class="login-tagline">Monitor Server Anda<br /><span>Secara Real-Time</span></h2>
+      <p class="login-desc">Dashboard monitoring profesional berbasis Prometheus untuk memantau performa server UMKM Anda.</p>
+
+    </div>
+  </div>
+
+  <!-- Right: Form -->
+  <div class="login-right">
+    <div class="login-form-wrap">
+
+      <h1 class="login-form-title">Selamat datang 👋</h1>
+      <p class="login-form-sub">Login untuk mengakses dashboard monitoring</p>
+
+      <div class="demo-hint">
+        <i class="fas fa-info-circle"></i>
+        <div>
+          <div class="demo-hint-text">Gunakan kredensial demo berikut untuk ujian praktek:</div>
+          <div class="demo-hint-creds">
+            Username: <strong>admin</strong> &nbsp;|&nbsp; Password: <strong>admin123</strong>
+          </div>
+        </div>
+      </div>
+
+      <form id="login-form" novalidate>
+
+        <div class="form-group">
+          <label class="form-label" for="username">Username</label>
+          <div class="input-group" id="username-group">
+            <i class="fas fa-user input-icon"></i>
+            <input
+              type="text"
+              id="username"
+              class="form-input"
+              placeholder="Masukkan username"
+              autocomplete="username"
+              autocapitalize="none"
+            />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password">Password</label>
+          <div class="input-group" id="password-group">
+            <i class="fas fa-lock input-icon"></i>
+            <input
+              type="password"
+              id="password"
+              class="form-input"
+              placeholder="Masukkan password"
+              autocomplete="current-password"
+              style="padding-right:42px"
+            />
+            <button type="button" class="toggle-pw" id="toggle-password" title="Tampilkan password">
+              <i class="fas fa-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="error-msg" id="login-error">
+          <i class="fas fa-exclamation-circle"></i>
+          <span id="error-text">Username atau password salah</span>
+        </div>
+
+        <button type="submit" class="btn-login" id="login-btn">
+          <i class="fas fa-sign-in-alt"></i> Login ke Dashboard
+        </button>
+
+        <p class="back-link">
+          <a href="index.html"><i class="fas fa-arrow-left"></i> Kembali ke Halaman Utama</a>
+        </p>
+
+      </form>
+
+      <div class="login-footer-info">
+        <span class="login-footer-badge">
+          <i class="fas fa-shield-alt" style="color:var(--accent-green)"></i>
+          Project PKWU SMK TKJ &nbsp;·&nbsp; 2026
+        </span>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script src="project-server-monitoring/js/login.js"></script>
+
+</body>
+</html>
