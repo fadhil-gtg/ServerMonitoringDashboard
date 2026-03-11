@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const loadingEl = document.getElementById('loading-overlay');
 
   // ── INSTANCES ─────────────────────────────────────────────
-  let prometheus = new PrometheusAPI('http://192.168.1.8:9091');
+  let prometheus = new PrometheusAPI('http://localhost:9090');
   let simulator = new SimulatedMetrics();
   let useSimulator = true;
   let refreshInterval = null;
